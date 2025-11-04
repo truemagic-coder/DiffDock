@@ -9,6 +9,11 @@ from functools import partial
 import warnings
 from typing import Mapping, Optional
 
+# CRITICAL: Set CUDA device before importing torch to ensure GPU usage
+# This must happen before any CUDA initialization
+if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 import yaml
 
 # Ignore pandas deprecation warning around pyarrow
@@ -151,6 +156,13 @@ def main(args):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"DiffDock will run on {device}")
+    
+    # CRITICAL: Verify GPU is actually being used
+    if torch.cuda.is_available():
+        print(f"✅ DiffDock using GPU: {torch.cuda.get_device_name(0)}")
+        print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+    else:
+        print("❌ WARNING: DiffDock will use CPU (very slow!)")
 
     if args.protein_ligand_csv is not None:
         df = pd.read_csv(args.protein_ligand_csv)
