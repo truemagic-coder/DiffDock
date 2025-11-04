@@ -138,9 +138,15 @@ class InferenceDataset(Dataset):
             print("Generating ESM language model embeddings")
             model_location = "esm2_t33_650M_UR50D"
             model, alphabet = pretrained.load_model_and_alphabet(model_location)
-            model.eval()
+            
+            # CRITICAL FIX: Move to GPU BEFORE eval() to avoid CPU initialization
             if torch.cuda.is_available():
+                print(f"🎮 Moving ESM model to GPU: {torch.cuda.get_device_name(0)}")
                 model = model.cuda()
+            else:
+                print("⚠️  CUDA not available, ESM will use CPU (slow!)")
+            
+            model.eval()
 
             protein_sequences = get_sequences(protein_files, protein_sequences)
             labels, sequences = [], []
