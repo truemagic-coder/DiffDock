@@ -14,27 +14,93 @@ from datasets.parse_chi import aa_idx2aa_short, get_onehot_sequence
 def get_sequences_from_pdbfile(file_path):
     sequence = None
 
-    pdb = pr.parsePDB(file_path)
-    seq = pdb.ca.getSequence()
-    one_hot = get_onehot_sequence(seq)
+    try:
+        pdb = pr.parsePDB(file_path)
+        
+        # Handle CA-only PDBs from ESMFold (pdb.ca may be None)
+        if pdb is None or pdb.ca is None:
+            print(f"⚠️  prody failed to parse {file_path} - attempting manual sequence extraction")
+            # Fallback: extract sequence manually from PDB file
+            return extract_sequence_from_pdb_manual(file_path)
+        
+        seq = pdb.ca.getSequence()
+        one_hot = get_onehot_sequence(seq)
 
-    chain_ids = np.zeros(len(one_hot))
-    res_chain_ids = pdb.ca.getChids()
-    res_seg_ids = pdb.ca.getSegnames()
-    res_chain_ids = np.asarray([s + c for s, c in zip(res_seg_ids, res_chain_ids)])
-    ids = np.unique(res_chain_ids)
+        chain_ids = np.zeros(len(one_hot))
+        res_chain_ids = pdb.ca.getChids()
+        res_seg_ids = pdb.ca.getSegnames()
+        res_chain_ids = np.asarray([s + c for s, c in zip(res_seg_ids, res_chain_ids)])
+        ids = np.unique(res_chain_ids)
 
-    for i, id in enumerate(ids):
-        chain_ids[res_chain_ids == id] = i
+        for i, id in enumerate(ids):
+            chain_ids[res_chain_ids == id] = i
 
-        s_temp = np.argmax(one_hot[res_chain_ids == id], axis=1)
-        s = ''.join([aa_idx2aa_short[aa_idx] for aa_idx in s_temp])
+            s_temp = np.argmax(one_hot[res_chain_ids == id], axis=1)
+            s = ''.join([aa_idx2aa_short[aa_idx] for aa_idx in s_temp])
 
-        if sequence is None:
-            sequence = s
-        else:
-            sequence += (":" + s)
+            if sequence is None:
+                sequence = s
+            else:
+                sequence += (":" + s)
 
+        return sequence
+    except Exception as e:
+        print(f"⚠️  Error parsing PDB with prody: {e}")
+        print(f"   Attempting manual sequence extraction from {file_path}")
+        return extract_sequence_from_pdb_manual(file_path)
+
+
+def extract_sequence_from_pdb_manual(file_path):
+    """
+    Manually extract amino acid sequence from PDB file.
+    Handles CA-only PDBs from ESMFold that prody can't parse.
+    """
+    aa_3to1 = {
+        'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
+        'GLN': 'Q', 'GLU': 'E', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
+        'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
+        'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V',
+        'SEC': 'U', 'PYL': 'O'
+    }
+    
+    residues = {}
+    
+    with open(file_path, 'r') as f:
+        for line in f:
+            if not line.startswith('ATOM'):
+                continue
+            
+            try:
+                # Only look at CA atoms
+                atom_name = line[12:16].strip()
+                if atom_name != 'CA':
+                    continue
+                
+                # Extract residue info
+                res_name = line[17:20].strip()
+                chain_id = line[21:22].strip() if len(line) > 21 else 'A'
+                res_num_str = line[22:26].strip()
+                
+                if not res_num_str:
+                    continue
+                
+                res_num = int(res_num_str)
+                
+                # Store residue
+                key = (chain_id, res_num)
+                if key not in residues:
+                    residues[key] = res_name
+            except (ValueError, IndexError):
+                continue
+    
+    if not residues:
+        raise ValueError(f"Could not extract any residues from {file_path}")
+    
+    # Build sequence from sorted residues
+    sorted_residues = sorted(residues.items(), key=lambda x: (x[0][0], x[0][1]))
+    sequence = ''.join([aa_3to1.get(res_name, 'X') for (chain, num), res_name in sorted_residues])
+    
+    print(f"✅ Extracted {len(sequence)} residues manually from PDB")
     return sequence
 
 
