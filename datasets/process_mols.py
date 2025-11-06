@@ -147,10 +147,18 @@ def moad_extract_receptor_structure(path, complex_graph, neighbor_cutoff=20, max
     one_hot = get_onehot_sequence(seq)
 
     chain_ids = np.zeros(len(one_hot))
-    res_chain_ids = pdb.ca.getChids()
-    res_seg_ids = pdb.ca.getSegnames()
-    res_chain_ids = np.asarray([s + c for s, c in zip(res_seg_ids, res_chain_ids)])
-    ids = np.unique(res_chain_ids)
+    
+    # Handle CA-only structures where pdb might be None
+    if pdb is None:
+        # Assume single chain 'A' for CA-only structures
+        res_chain_ids = np.array(['A'] * len(one_hot))
+        ids = np.array(['A'])
+        print(f"✅ Using default chain ID 'A' for CA-only structure")
+    else:
+        res_chain_ids = pdb.ca.getChids()
+        res_seg_ids = pdb.ca.getSegnames()
+        res_chain_ids = np.asarray([s + c for s, c in zip(res_seg_ids, res_chain_ids)])
+        ids = np.unique(res_chain_ids)
     sequences = []
     lm_embeddings = lm_embeddings if sequences_to_embeddings is None else []
 
