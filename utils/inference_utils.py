@@ -300,6 +300,9 @@ class InferenceDataset(Dataset):
             get_lig_graph_with_matching(mol, complex_graph, popsize=None, maxiter=None, matching=False, keep_original=False,
                                         num_conformers=1, remove_hs=self.remove_hs)
 
+            # Get the protein sequence for this complex (if available)
+            protein_seq = self.protein_sequences[idx] if self.protein_sequences and idx < len(self.protein_sequences) else None
+            
             moad_extract_receptor_structure(
                 path=os.path.join(protein_file),
                 complex_graph=complex_graph,
@@ -309,7 +312,8 @@ class InferenceDataset(Dataset):
                 knn_only_graph=self.knn_only_graph,
                 all_atoms=self.all_atoms,
                 atom_cutoff=self.atom_radius,
-                atom_max_neighbors=self.atom_max_neighbors)
+                atom_max_neighbors=self.atom_max_neighbors,
+                protein_sequence=protein_seq)
 
         except Exception as e:
             print(f'Skipping {name} because of the error:')

@@ -126,10 +126,19 @@ def safe_index(l, e):
 
 
 def moad_extract_receptor_structure(path, complex_graph, neighbor_cutoff=20, max_neighbors=None, sequences_to_embeddings=None,
-                                    knn_only_graph=False, lm_embeddings=None, all_atoms=False, atom_cutoff=None, atom_max_neighbors=None):
+                                    knn_only_graph=False, lm_embeddings=None, all_atoms=False, atom_cutoff=None, atom_max_neighbors=None, protein_sequence=None):
     # load the entire pdb file
     pdb = pr.parsePDB(path)
-    seq = pdb.ca.getSequence()
+    
+    # PRIORITY: Use provided sequence if available (for CA-only PDBs from ESMFold)
+    if protein_sequence is not None and protein_sequence != '':
+        seq = protein_sequence
+        print(f"✅ Using provided sequence in moad_extract: {len(seq)} residues")
+    else:
+        seq = pdb.ca.getSequence()
+        if seq is None:
+            raise ValueError(f"Failed to extract sequence from PDB {path} and no sequence provided")
+    
     coords = get_coords(pdb)
     one_hot = get_onehot_sequence(seq)
 
