@@ -134,12 +134,16 @@ def moad_extract_receptor_structure(path, complex_graph, neighbor_cutoff=20, max
     if protein_sequence is not None and protein_sequence != '':
         seq = protein_sequence
         print(f"✅ Using provided sequence in moad_extract: {len(seq)} residues")
+        # For CA-only structures, we can't extract sidechain coordinates
+        # Use dummy coords - DiffDock mainly needs CA positions which are in the PDB
+        coords = np.full((len(seq), 14, 3), np.nan)
+        print(f"✅ Using CA-only structure - skipping sidechain coordinates")
     else:
         seq = pdb.ca.getSequence()
         if seq is None:
             raise ValueError(f"Failed to extract sequence from PDB {path} and no sequence provided")
+        coords = get_coords(pdb)
     
-    coords = get_coords(pdb)
     one_hot = get_onehot_sequence(seq)
 
     chain_ids = np.zeros(len(one_hot))
