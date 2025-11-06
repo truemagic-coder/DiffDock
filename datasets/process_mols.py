@@ -131,13 +131,17 @@ def moad_extract_receptor_structure(path, complex_graph, neighbor_cutoff=20, max
     pdb = pr.parsePDB(path)
     
     # PRIORITY: Use provided sequence if available (for CA-only PDBs from ESMFold)
-    if protein_sequence is not None and protein_sequence != '':
+    using_provided_sequence = protein_sequence is not None and protein_sequence != ''
+    
+    if using_provided_sequence:
         seq = protein_sequence
         print(f"✅ Using provided sequence in moad_extract: {len(seq)} residues")
         # For CA-only structures, we can't extract sidechain coordinates
         # Use dummy coords - DiffDock mainly needs CA positions which are in the PDB
         coords = np.full((len(seq), 14, 3), np.nan)
-        print(f"✅ Using CA-only structure - skipping sidechain coordinates")
+        print("✅ Using CA-only structure - skipping sidechain coordinates")
+        # Mark that we should skip prody operations that fail on CA-only structures
+        pdb = None
     else:
         seq = pdb.ca.getSequence()
         if seq is None:
