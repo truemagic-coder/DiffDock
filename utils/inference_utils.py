@@ -109,12 +109,29 @@ def set_nones(l):
 
 
 def get_sequences(protein_files, protein_sequences):
+    """
+    Get protein sequences either from provided sequences or by parsing PDB files.
+    
+    Args:
+        protein_files: List of PDB file paths
+        protein_sequences: List of protein sequences (can be None)
+    
+    Returns:
+        List of protein sequences
+    """
     new_sequences = []
     for i in range(len(protein_files)):
-        if protein_files[i] is not None:
-            new_sequences.append(get_sequences_from_pdbfile(protein_files[i]))
-        else:
+        # PRIORITY 1: Use provided sequence if available (most reliable)
+        if protein_sequences is not None and i < len(protein_sequences) and protein_sequences[i] is not None and protein_sequences[i] != '':
             new_sequences.append(protein_sequences[i])
+            print(f"✅ Using provided sequence for protein {i+1}: {len(protein_sequences[i])} residues")
+        # PRIORITY 2: Parse PDB file if no sequence provided
+        elif protein_files[i] is not None:
+            seq = get_sequences_from_pdbfile(protein_files[i])
+            new_sequences.append(seq)
+        else:
+            # No file and no sequence - this will fail later
+            new_sequences.append(None)
     return new_sequences
 
 
